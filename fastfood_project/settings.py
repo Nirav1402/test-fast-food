@@ -9,7 +9,7 @@ pymysql.install_as_MySQLdb()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-your-secret-key' 
-DEBUG = False
+DEBUG = True
 ALLOWED_HOSTS = ['*']
 ROOT_URLCONF = 'fastfood_project.urls'
 WSGI_APPLICATION = 'fastfood_project.wsgi.application'

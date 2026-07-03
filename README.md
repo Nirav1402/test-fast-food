@@ -20,7 +20,7 @@ A full-stack food ordering and delivery web application built with Django and SQ
 
 * Backend: Django (Python)
 * Frontend: HTML, CSS, JavaScript, Bootstrap
-* Database: SQLite / MySQL
+* Database: MySQL setup
 * Authentication: Django Authentication System
 * PDF Generation: ReportLab
 
@@ -50,5 +50,5 @@ python manage.py runserver
 
 ## Author
 
-Bhargav Baria
+Bhargav Baria & Nirav Acharya
 B.Sc. IT Graduate | Django Full Stack Developer

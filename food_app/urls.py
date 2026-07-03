@@ -12,7 +12,8 @@ urlpatterns = [
     path("login/", views.user_login, name="login"),
     path("logout/", views.user_logout, name="logout"),
     path("register/", views.user_register, name="register"),
-
+    path("admin-dashboard/", views.admin_dashboard, name="admin_dashboard"),
+    path("delivery-dashboard/", views.delivery_dashboard, name="delivery_dashboard"),
     path("add-to-cart/<int:product_id>/", views.add_to_cart, name="add_to_cart"),
     path("remove-from-cart/<int:product_id>/", views.remove_from_cart, name="remove_from_cart"),
 

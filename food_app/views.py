@@ -1,3 +1,4 @@
+from .models import UserProfile
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -173,13 +174,31 @@ def user_login(request):
     if request.method == "POST":
         username = request.POST.get("username")
         password = request.POST.get("password")
+
         user = authenticate(request, username=username, password=password)
+
         if user:
             login(request, user)
+
+            try:
+                role = user.userprofile.role
+            except UserProfile.DoesNotExist:
+                role = "customer"
+
             messages.success(request, "Login successful!")
-            return redirect("home")
+
+            if role == "admin":
+                return redirect("admin_dashboard")
+
+            elif role == "delivery":
+                return redirect("delivery_dashboard")
+
+            else:
+                return redirect("home")
+
         else:
             messages.error(request, "Invalid username or password")
+
     return render(request, "food_app/login.html")
 
 def user_logout(request):
@@ -192,16 +211,28 @@ def user_register(request):
         username = request.POST.get("username")
         email = request.POST.get("email")
         password = request.POST.get("password")
+
         if User.objects.filter(username=username).exists():
             messages.error(request, "Username already exists!")
             return redirect("register")
-        user = User.objects.create_user(username=username, email=email, password=password)
+
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password
+        )
+
         user.save()
+
+        UserProfile.objects.create(
+            user=user,
+            role="customer"
+        )
+
         messages.success(request, "Registration successful! Please log in.")
         return redirect("login")
+
     return render(request, "food_app/register.html")
-
-
 # ============ DELIVERY SYSTEM VIEWS ============
 
 @login_required(login_url="login")
@@ -335,3 +366,29 @@ def delivery_status_api(request, order_id):
         }
     
     return JsonResponse(data)
+from django.contrib.auth.decorators import login_required
+
+@login_required
+def admin_dashboard(request):
+
+    if request.user.userprofile.role != "admin":
+        messages.error(request, "Access Denied!")
+        return redirect("home")
+
+    orders = Order.objects.all().order_by("-created_at")
+    delivery_persons = DeliveryPerson.objects.all()
+
+    context = {
+        "orders": orders,
+        "delivery_persons": delivery_persons,
+    }
+
+    return render(request, "food_app/admin_dashboard.html", context)
+
+@login_required
+def delivery_dashboard(request):
+    if request.user.userprofile.role != "delivery":
+        messages.error(request, "Access Denied!")
+        return redirect("home")
+
+    return render(request, "food_app/delivery_dashboard.html")

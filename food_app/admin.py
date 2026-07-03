@@ -1,6 +1,15 @@
 from django.contrib import admin
-from .models import Product, Cart, CartItem, Order, OrderItem, DeliveryAddress, DeliveryPerson, Delivery
-
+from .models import (
+    Product,
+    Cart,
+    CartItem,
+    Order,
+    OrderItem,
+    DeliveryAddress,
+    DeliveryPerson,
+    Delivery,
+    UserProfile,
+)
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = ('name', 'price', 'available')
@@ -106,3 +115,8 @@ class DeliveryAdmin(admin.ModelAdmin):
         queryset.update(status='delivered', actual_delivery_time=timezone.now())
         self.message_user(request, f'{queryset.count()} deliveries marked as delivered.')
     mark_as_delivered.short_description = 'Mark selected as delivered'
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ("user", "role")
+    list_filter = ("role",)
+    search_fields = ("user__username", "user__email")
