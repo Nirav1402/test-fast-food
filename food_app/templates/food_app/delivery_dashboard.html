@@ -9,5 +9,61 @@
 
 <h3>Welcome {{ request.user.username }}</h3>
 
+<h2>Your Assigned Orders</h2>
+
+{% if assigned_deliveries %}
+    <table border="1" cellpadding="10" style="border-collapse: collapse; width: 100%;">
+        <tr>
+            <th>Delivery ID</th>
+            <th>Order ID</th>
+            <th>Customer</th>
+            <th>Total</th>
+            <th>Delivery Address</th>
+            <th>Order Items</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+        {% for delivery in assigned_deliveries %}
+        <tr>
+            <td>{{ delivery.id }}</td>
+            <td>{{ delivery.order.id }}</td>
+            <td>{{ delivery.order.user.username }}</td>
+            <td>₹{{ delivery.order.total }}</td>
+            <td>
+                {% if delivery.order.delivery_address %}
+                    {{ delivery.order.delivery_address.street_address }}<br>
+                    {{ delivery.order.delivery_address.city }}, {{ delivery.order.delivery_address.postal_code }}<br>
+                    Phone: {{ delivery.order.delivery_address.phone }}
+                {% else %}
+                    N/A
+                {% endif %}
+            </td>
+            <td>
+                <ul style="margin: 0; padding-left: 18px;">
+                    {% for item in delivery.order.items.all %}
+                        <li>{{ item.product.name }} x {{ item.quantity }} - ₹{{ item.subtotal }}</li>
+                    {% empty %}
+                        <li>No items</li>
+                    {% endfor %}
+                </ul>
+            </td>
+            <td>{{ delivery.get_status_display }}</td>
+            <td>
+                {% if delivery.status == 'assigned' %}
+                    <form method="post" action="{% url 'accept_delivery' delivery.id %}">
+                        {% csrf_token %}
+                        <button type="submit">Accept</button>
+                    </form>
+                {% else %}
+                    {{ delivery.get_status_display }}
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+{% else %}
+    <p>No deliveries assigned to you yet.</p>
+{% endif %}
+
 </body>
 </html>

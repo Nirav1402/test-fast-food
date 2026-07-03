@@ -70,6 +70,7 @@
 
                 <div class="mt-3">
                     <a href="{% url 'order_detail' order.id %}" class="btn btn-sm btn-info">View Details</a>
+                    <a href="{% url 'order_status' order.id %}" class="btn btn-sm btn-primary">Order Status</a>
                     {% if order.delivery and order.delivery.status != 'delivered' %}
                         <a href="{% url 'track_order' order.id %}" class="btn btn-sm btn-warning">Track Delivery</a>
                     {% endif %}

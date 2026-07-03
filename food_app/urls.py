@@ -13,7 +13,9 @@ urlpatterns = [
     path("logout/", views.user_logout, name="logout"),
     path("register/", views.user_register, name="register"),
     path("admin-dashboard/", views.admin_dashboard, name="admin_dashboard"),
+    path("assign-delivery/<int:order_id>/", views.assign_delivery_person, name="assign_delivery_person"),
     path("delivery-dashboard/", views.delivery_dashboard, name="delivery_dashboard"),
+    path("accept-delivery/<int:delivery_id>/", views.accept_delivery, name="accept_delivery"),
     path("add-to-cart/<int:product_id>/", views.add_to_cart, name="add_to_cart"),
     path("remove-from-cart/<int:product_id>/", views.remove_from_cart, name="remove_from_cart"),
 
@@ -27,6 +29,7 @@ urlpatterns = [
     
     # Order & Tracking URLs
     path("order/<int:order_id>/", views.order_detail, name="order_detail"),
+    path("order-status/<int:order_id>/", views.order_status, name="order_status"),
     path("order-history/", views.order_history, name="order_history"),
     path("track-order/<int:order_id>/", views.track_order, name="track_order"),
     path("api/delivery-status/<int:order_id>/", views.delivery_status_api, name="delivery_status_api"),

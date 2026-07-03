@@ -8,6 +8,7 @@ from django.contrib.auth.models import User
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST
 from django.utils import timezone
+from django.db.models import Sum
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from .forms import DeliveryAddressForm
@@ -310,6 +311,20 @@ def order_detail(request, order_id):
 
 
 @login_required(login_url="login")
+def order_status(request, order_id):
+    """View order status for a user's order."""
+    order = get_object_or_404(Order, id=order_id, user=request.user)
+    delivery = getattr(order, 'delivery', None)
+    order_items = order.items.all()
+
+    return render(request, "food_app/order_status.html", {
+        "order": order,
+        "delivery": delivery,
+        "order_items": order_items,
+    })
+
+
+@login_required(login_url="login")
 def order_history(request):
     """View user's order history"""
     orders = request.user.order_set.all().order_by('-created_at')
@@ -375,15 +390,74 @@ def admin_dashboard(request):
         messages.error(request, "Access Denied!")
         return redirect("home")
 
-    orders = Order.objects.all().order_by("-created_at")
+    orders = Order.objects.select_related("user", "delivery_address").prefetch_related("items__product", "delivery__delivery_person").all().order_by("-created_at")
+    users = User.objects.filter(userprofile__isnull=False).select_related("userprofile").order_by("-date_joined")
+    total_orders = orders.count()
+    total_users = users.count()
+    total_revenue = orders.aggregate(total_revenue=Sum("total"))["total_revenue"] or 0
+    total_customers = UserProfile.objects.filter(role="customer").count()
+    total_delivery_persons = UserProfile.objects.filter(role="delivery").count()
+    total_admins = UserProfile.objects.filter(role="admin").count()
     delivery_persons = DeliveryPerson.objects.all()
 
     context = {
         "orders": orders,
+        "users": users,
         "delivery_persons": delivery_persons,
+        "total_orders": total_orders,
+        "total_users": total_users,
+        "total_revenue": total_revenue,
+        "total_customers": total_customers,
+        "total_delivery_persons": total_delivery_persons,
+        "total_admins": total_admins,
     }
 
     return render(request, "food_app/admin_dashboard.html", context)
+
+@require_POST
+@login_required
+def assign_delivery_person(request, order_id):
+    if request.user.userprofile.role != "admin":
+        messages.error(request, "Access Denied!")
+        return redirect("home")
+
+    order = get_object_or_404(Order, id=order_id)
+    delivery = getattr(order, "delivery", None)
+    if not delivery:
+        messages.error(request, "Order delivery record not found.")
+        return redirect("admin_dashboard")
+
+    delivery_person_id = request.POST.get("delivery_person")
+    if not delivery_person_id:
+        messages.error(request, "Please select a delivery person to assign.")
+        return redirect("admin_dashboard")
+
+    delivery_person = get_object_or_404(DeliveryPerson, id=delivery_person_id)
+    delivery.delivery_person = delivery_person
+    if delivery.status == "pending":
+        delivery.status = "assigned"
+    delivery.save()
+
+    messages.success(request, f"Order #{order.id} assigned to {delivery_person.user.username}.")
+    return redirect("admin_dashboard")
+
+@require_POST
+@login_required
+def accept_delivery(request, delivery_id):
+    if request.user.userprofile.role != "delivery":
+        messages.error(request, "Access Denied!")
+        return redirect("home")
+
+    delivery = get_object_or_404(Delivery, id=delivery_id, delivery_person__user=request.user)
+    if delivery.status != "assigned":
+        messages.error(request, "This delivery cannot be accepted right now.")
+        return redirect("delivery_dashboard")
+
+    delivery.status = "picked_up"
+    delivery.save()
+
+    messages.success(request, f"You have accepted Order #{delivery.order.id}.")
+    return redirect("delivery_dashboard")
 
 @login_required
 def delivery_dashboard(request):
@@ -391,4 +465,11 @@ def delivery_dashboard(request):
         messages.error(request, "Access Denied!")
         return redirect("home")
 
-    return render(request, "food_app/delivery_dashboard.html")
+    delivery_person = DeliveryPerson.objects.filter(user=request.user).first()
+    assigned_deliveries = []
+    if delivery_person:
+        assigned_deliveries = Delivery.objects.select_related("order__user", "order__delivery_address").filter(delivery_person=delivery_person).order_by("-created_at")
+
+    return render(request, "food_app/delivery_dashboard.html", {
+        "assigned_deliveries": assigned_deliveries,
+    })
