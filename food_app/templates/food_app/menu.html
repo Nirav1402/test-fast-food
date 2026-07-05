@@ -25,10 +25,7 @@
         <div class="mt-auto d-flex gap-2">
           <a href="{% url 'product_detail' p.id %}" class="btn btn-outline-primary w-50">View</a>
 
-          <form action="{% url 'add_to_cart' p.id %}" method="post" class="w-50">
-            {% csrf_token %}
-            <button class="btn btn-primary w-100">Add</button>
-          </form>
+          <button class="btn btn-primary w-100 add-to-cart-btn" data-product-id="{{ p.id }}">Add</button>
         </div>
       </div>
 

@@ -16,7 +16,7 @@
       <div class="card-body">
         <h5 class="card-title">{{ p.name }}</h5>
         <p class="card-text">₹ {{ p.price }}</p>
-        <a href="{% url 'product_detail' p.id %}" class="btn btn-outline-primary">Details</a>
+        <a href="{% url 'product_detail' p.id %}" class="btn btn-outline-primary" data-async-page="{% url 'product_detail' p.id %}" data-modal-title="{{ p.name }}">Details</a>
       </div>
     </div>
   </div>

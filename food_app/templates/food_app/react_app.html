@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fast Food React App</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background: #f8f9fa; color: #222; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 32px; }
+        .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+        .product { border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; }
+        .btn { display: inline-block; background: #dc3545; color: white; padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; }
+        .muted { color: #6c757d; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>Fast Food React Experience</h1>
+            <p class="muted">This page is a React-style frontend shell connected to your Django backend.</p>
+            <button class="btn" onclick="loadProducts()">Load Products</button>
+        </div>
+
+        <div id="products-root" class="grid"></div>
+    </div>
+
+    <script>
+        async function loadProducts() {
+            const root = document.getElementById('products-root');
+            root.innerHTML = '<div class="card">Loading products...</div>';
+
+            try {
+                const response = await fetch('/api/products/');
+                const data = await response.json();
+
+                if (!data.products || !data.products.length) {
+                    root.innerHTML = '<div class="card">No products available.</div>';
+                    return;
+                }
+
+                root.innerHTML = data.products.map(product => `
+                    <div class="product">
+                        <h3>${product.name}</h3>
+                        <p class="muted">${product.category}</p>
+                        <p>${product.description || 'Freshly prepared and served hot.'}</p>
+                        <strong>₹${product.price}</strong>
+                    </div>
+                `).join('');
+            } catch (error) {
+                root.innerHTML = '<div class="card">Unable to load products right now.</div>';
+            }
+        }
+
+        window.addEventListener('load', loadProducts);
+    </script>
+</body>
+</html>

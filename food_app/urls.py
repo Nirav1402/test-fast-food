@@ -16,6 +16,7 @@ urlpatterns = [
     path("assign-delivery/<int:order_id>/", views.assign_delivery_person, name="assign_delivery_person"),
     path("delivery-dashboard/", views.delivery_dashboard, name="delivery_dashboard"),
     path("accept-delivery/<int:delivery_id>/", views.accept_delivery, name="accept_delivery"),
+    path("mark-delivered/<int:delivery_id>/", views.mark_delivery_delivered, name="mark_delivery_delivered"),
     path("add-to-cart/<int:product_id>/", views.add_to_cart, name="add_to_cart"),
     path("remove-from-cart/<int:product_id>/", views.remove_from_cart, name="remove_from_cart"),
 
@@ -33,5 +34,9 @@ urlpatterns = [
     path("order-history/", views.order_history, name="order_history"),
     path("track-order/<int:order_id>/", views.track_order, name="track_order"),
     path("api/delivery-status/<int:order_id>/", views.delivery_status_api, name="delivery_status_api"),
+    path("api/products/", views.api_products, name="api_products"),
+    path("api/delivery-addresses/", views.api_delivery_addresses, name="api_delivery_addresses"),
+    path("api/orders/", views.api_orders, name="api_orders"),
+    path("react/", views.react_app, name="react_app"),
 ]
 

@@ -69,6 +69,7 @@
         <li class="nav-item"><a href="{% url 'cart' %}" class="nav-link">Cart</a></li>
 
         {% if user.is_authenticated %}
+        <li class="nav-item"><a href="{% url 'order_history' %}" class="nav-link">Order History</a></li>
         <li class="nav-item"><a href="{% url 'logout' %}" class="nav-link">Logout</a></li>
         {% else %}
         <li class="nav-item"><a href="{% url 'login' %}" class="nav-link">Login</a></li>
@@ -79,9 +80,25 @@
   </div>
 </nav>
 
+<div style="display:none;">
+  {% csrf_token %}
+</div>
+
 <main class="container my-4 page-fade">
   {% block content %}{% endblock %}
 </main>
+
+<div class="modal fade" id="asyncModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="asyncModalLabel">Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="asyncModalBody"></div>
+    </div>
+  </div>
+</div>
 
 <footer class="text-center py-4" style="background:#111;color:white;">
   © {{ now.year }} FastFood. All rights reserved.
@@ -99,6 +116,90 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  function bindCartActions(root = document) {
+    root.querySelectorAll('.add-to-cart-btn').forEach(function (button) {
+      button.onclick = function (event) {
+        event.preventDefault();
+        const productId = this.getAttribute('data-product-id');
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/add-to-cart/' + productId + '/', true);
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.setRequestHeader('X-CSRFToken', document.querySelector('[name=csrfmiddlewaretoken]')?.value || '');
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === 4) {
+            if (xhr.status === 401) {
+              window.location.href = '/login/';
+              return;
+            }
+            if (xhr.status >= 200 && xhr.status < 300) {
+              window.location.reload();
+            }
+          }
+        };
+        xhr.send();
+      };
+    });
+
+    root.querySelectorAll('.remove-from-cart-btn').forEach(function (button) {
+      button.onclick = function (event) {
+        event.preventDefault();
+        const productId = this.getAttribute('data-product-id');
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/remove-from-cart/' + productId + '/', true);
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.setRequestHeader('X-CSRFToken', document.querySelector('[name=csrfmiddlewaretoken]')?.value || '');
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === 4) {
+            if (xhr.status === 401) {
+              window.location.href = '/login/';
+              return;
+            }
+            if (xhr.status >= 200 && xhr.status < 300) {
+              window.location.reload();
+            }
+          }
+        };
+        xhr.send();
+      };
+    });
+  }
+
+  function bindAsyncPageLinks(root = document) {
+    root.querySelectorAll('[data-async-page]').forEach(function (link) {
+      link.onclick = function (event) {
+        event.preventDefault();
+        const url = this.getAttribute('data-async-page');
+        const title = this.getAttribute('data-modal-title') || 'Details';
+        const modal = new bootstrap.Modal(document.getElementById('asyncModal'));
+        const body = document.getElementById('asyncModalBody');
+        const label = document.getElementById('asyncModalLabel');
+        label.textContent = title;
+        body.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>';
+        modal.show();
+
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+          .then(function (response) { return response.text(); })
+          .then(function (html) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const main = doc.querySelector('main.container.my-4.page-fade');
+            body.innerHTML = main ? main.innerHTML : doc.body.innerHTML;
+            bindCartActions(body);
+            bindAsyncPageLinks(body);
+          })
+          .catch(function () {
+            body.innerHTML = '<div class="alert alert-danger">Unable to load this section right now.</div>';
+          });
+      };
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    bindCartActions();
+    bindAsyncPageLinks();
+  });
+</script>
 
 {% block extra_scripts %}{% endblock %}
 </body>

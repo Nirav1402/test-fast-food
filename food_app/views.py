@@ -6,6 +6,7 @@ from django.contrib import messages
 from .models import Product, CartItem, Category, Cart, DeliveryAddress, Order, Delivery, DeliveryPerson, OrderItem
 from django.contrib.auth.models import User
 from django.http import HttpResponse, JsonResponse
+from django.core.serializers.json import DjangoJSONEncoder
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.db.models import Sum
@@ -136,8 +137,16 @@ def cart(request):
         "total_price": total_price
     })
 
-@login_required(login_url="login")
 def add_to_cart(request, product_id):
+    if not request.user.is_authenticated:
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({
+                "success": False,
+                "message": "Please log in to add items to your cart.",
+                "require_login": True,
+            }, status=401)
+        return redirect("login")
+
     product = get_object_or_404(Product, pk=product_id)
     cart_obj, created = Cart.objects.get_or_create(user=request.user, active=True)
     cart_item, created = CartItem.objects.get_or_create(cart=cart_obj, product=product)
@@ -145,15 +154,39 @@ def add_to_cart(request, product_id):
         cart_item.quantity += 1
     cart_item.save()
     messages.success(request, "Item added to cart!")
+
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return JsonResponse({
+            "success": True,
+            "message": "Item added to cart!",
+            "item_count": cart_obj.items.count(),
+        })
+
     return redirect(request.META.get("HTTP_REFERER", "menu"))
 
 
-@login_required(login_url="login")
 def remove_from_cart(request, product_id):
+    if not request.user.is_authenticated:
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({
+                "success": False,
+                "message": "Please log in to manage your cart.",
+                "require_login": True,
+            }, status=401)
+        return redirect("login")
+
     cart_obj = get_object_or_404(Cart, user=request.user, active=True)
     item = get_object_or_404(CartItem, cart=cart_obj, product_id=product_id)
     item.delete()
     messages.success(request, "Item removed!")
+
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return JsonResponse({
+            "success": True,
+            "message": "Item removed!",
+            "item_count": cart_obj.items.count(),
+        })
+
     return redirect("cart")
 
 @login_required(login_url="login")
@@ -170,6 +203,75 @@ def checkout(request):
         "delivery_addresses": delivery_addresses,
         "default_address": default_address
     })
+
+def react_app(request):
+    return render(request, "food_app/react_app.html")
+
+
+def api_products(request):
+    products = Product.objects.filter(available=True).select_related("category").order_by("name")
+    payload = {
+        "count": products.count(),
+        "products": [
+            {
+                "id": product.id,
+                "name": product.name,
+                "description": product.description,
+                "price": float(product.price),
+                "category": product.category.name,
+                "image": product.image.url if product.image else None,
+            }
+            for product in products
+        ],
+    }
+    return JsonResponse(payload)
+
+
+@login_required(login_url="login")
+def api_delivery_addresses(request):
+    addresses = request.user.delivery_addresses.all().order_by("-is_default", "id")
+    payload = {
+        "count": addresses.count(),
+        "addresses": [
+            {
+                "id": address.id,
+                "street_address": address.street_address,
+                "city": address.city,
+                "postal_code": address.postal_code,
+                "phone": address.phone,
+                "is_default": address.is_default,
+            }
+            for address in addresses
+        ],
+    }
+    return JsonResponse(payload)
+
+
+@login_required(login_url="login")
+def api_orders(request):
+    orders = Order.objects.filter(user=request.user).select_related("delivery_address").prefetch_related("items__product").order_by("-created_at")
+    payload = {
+        "count": orders.count(),
+        "orders": [
+            {
+                "id": order.id,
+                "status": order.status,
+                "total": float(order.total),
+                "created_at": order.created_at.isoformat(),
+                "delivery_address": order.delivery_address.street_address if order.delivery_address else None,
+                "items": [
+                    {
+                        "name": item.product.name if item.product else "Product",
+                        "quantity": item.quantity,
+                    }
+                    for item in order.items.all()
+                ],
+            }
+            for order in orders
+        ],
+    }
+    return JsonResponse(payload)
+
 
 def user_login(request):
     if request.method == "POST":
@@ -188,6 +290,10 @@ def user_login(request):
 
             messages.success(request, "Login successful!")
 
+            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                redirect_to = "/admin-dashboard/" if role == "admin" else "/delivery-dashboard/" if role == "delivery" else "/"
+                return JsonResponse({"success": True, "redirect_to": redirect_to})
+
             if role == "admin":
                 return redirect("admin_dashboard")
 
@@ -199,6 +305,8 @@ def user_login(request):
 
         else:
             messages.error(request, "Invalid username or password")
+            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                return JsonResponse({"success": False, "message": "Invalid username or password"}, status=401)
 
     return render(request, "food_app/login.html")
 
@@ -251,17 +359,31 @@ def add_delivery_address(request):
         if form.is_valid():
             address = form.save(commit=False)
             address.user = request.user
-            
+
             # If marking as default, unmark other addresses
             if address.is_default:
                 DeliveryAddress.objects.filter(user=request.user, is_default=True).update(is_default=False)
-            
+
             address.save()
             messages.success(request, "Delivery address added successfully!")
+
+            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                return JsonResponse({
+                    "success": True,
+                    "message": "Delivery address added successfully!",
+                    "address_id": address.id,
+                })
+
             return redirect("delivery_addresses")
+
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({
+                "success": False,
+                "errors": form.errors,
+            }, status=400)
     else:
         form = DeliveryAddressForm()
-    
+
     return render(request, "food_app/add_delivery_address.html", {"form": form})
 
 
@@ -439,6 +561,10 @@ def assign_delivery_person(request, order_id):
     delivery.save()
 
     messages.success(request, f"Order #{order.id} assigned to {delivery_person.user.username}.")
+
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return JsonResponse({"success": True, "message": f"Order #{order.id} assigned successfully."})
+
     return redirect("admin_dashboard")
 
 @require_POST
@@ -457,6 +583,33 @@ def accept_delivery(request, delivery_id):
     delivery.save()
 
     messages.success(request, f"You have accepted Order #{delivery.order.id}.")
+
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return JsonResponse({"success": True, "message": f"You accepted Order #{delivery.order.id}."})
+
+    return redirect("delivery_dashboard")
+
+@require_POST
+@login_required
+def mark_delivery_delivered(request, delivery_id):
+    if request.user.userprofile.role != "delivery":
+        messages.error(request, "Access Denied!")
+        return redirect("home")
+
+    delivery = get_object_or_404(Delivery, id=delivery_id, delivery_person__user=request.user)
+    if delivery.status not in ["picked_up", "in_transit", "assigned"]:
+        messages.error(request, "This delivery is already completed or cannot be marked delivered.")
+        return redirect("delivery_dashboard")
+
+    delivery.status = "delivered"
+    delivery.actual_delivery_time = timezone.now()
+    delivery.save()
+
+    messages.success(request, f"Order #{delivery.order.id} marked as delivered.")
+
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return JsonResponse({"success": True, "message": f"Order #{delivery.order.id} marked as delivered."})
+
     return redirect("delivery_dashboard")
 
 @login_required

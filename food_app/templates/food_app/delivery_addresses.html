@@ -46,7 +46,7 @@
                         </p>
                         <div class="btn-group" role="group">
                             <a href="{% url 'edit_delivery_address' address.id %}" class="btn btn-sm btn-warning">Edit</a>
-                            <a href="{% url 'delete_delivery_address' address.id %}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">Delete</a>
+                            <a href="{% url 'delete_delivery_address' address.id %}" class="btn btn-sm btn-danger delete-address-btn" data-address-id="{{ address.id }}" onclick="return false;">Delete</a>
                         </div>
                     </div>
                 </div>
@@ -71,4 +71,25 @@
         margin-top: 10px;
     }
 </style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.delete-address-btn').forEach(function (button) {
+      button.addEventListener('click', function () {
+        if (!confirm('Are you sure?')) return;
+        const addressId = this.getAttribute('data-address-id');
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/delete-delivery-address/' + addressId + '/', true);
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.setRequestHeader('X-CSRFToken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === 4) {
+            window.location.reload();
+          }
+        };
+        xhr.send();
+      });
+    });
+  });
+</script>
 {% endblock %}

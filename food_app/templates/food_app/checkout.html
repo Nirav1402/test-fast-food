@@ -45,7 +45,7 @@
                     </div>
                     <div class="card-body">
                         {% if delivery_addresses %}
-                            <form method="post" action="{% url 'place_order' %}">
+                            <form id="checkout-form" method="post" action="{% url 'place_order' %}">
                                 {% csrf_token %}
                                 
                                 <div class="form-group">
@@ -133,6 +133,30 @@
 </div>
 
 <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('checkout-form');
+        if (form) {
+            form.addEventListener('submit', function (event) {
+                event.preventDefault();
+                const formData = new FormData(form);
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', form.action || window.location.href, true);
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                xhr.setRequestHeader('X-CSRFToken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            window.location.href = '/order-history/';
+                        } else {
+                            window.location.reload();
+                        }
+                    }
+                };
+                xhr.send(formData);
+            });
+        }
+    });
+
     document.getElementById('delivery_address').addEventListener('change', function() {
         const select = document.getElementById('delivery_address');
         const selectedOption = select.options[select.selectedIndex];

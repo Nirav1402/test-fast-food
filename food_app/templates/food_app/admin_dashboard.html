@@ -1,105 +1,190 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Admin Dashboard</title>
-</head>
-<body>
+{% extends "food_app/base.html" %}
 
-<h1>Admin Dashboard</h1>
+{% block title %}Admin Dashboard{% endblock %}
 
-<div>
-    <p><strong>Total orders:</strong> {{ total_orders }}</p>
-    <p><strong>Total users:</strong> {{ total_users }}</p>
-    <p><strong>Total revenue:</strong> ₹{{ total_revenue }}</p>
-    <p><strong>Customers:</strong> {{ total_customers }}</p>
-    <p><strong>Delivery persons:</strong> {{ total_delivery_persons }}</p>
-    <p><strong>Admins:</strong> {{ total_admins }}</p>
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">Admin Dashboard</h2>
+            <p class="text-muted mb-0">Manage orders, deliveries, and users from one place.</p>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Total Orders</h6>
+                    <h3 class="fw-bold mb-0">{{ total_orders }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Total Users</h6>
+                    <h3 class="fw-bold mb-0">{{ total_users }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Revenue</h6>
+                    <h3 class="fw-bold mb-0">₹{{ total_revenue }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Customers</h6>
+                    <h3 class="fw-bold mb-0">{{ total_customers }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Delivery</h6>
+                    <h3 class="fw-bold mb-0">{{ total_delivery_persons }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Admins</h6>
+                    <h3 class="fw-bold mb-0">{{ total_admins }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0">Orders</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Customer</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Delivery Status</th>
+                            <th>Delivery Person</th>
+                            <th>Address</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr>
+                            <td>#{{ order.id }}</td>
+                            <td>{{ order.user.username }}</td>
+                            <td>₹{{ order.total }}</td>
+                            <td><span class="badge bg-info text-dark">{{ order.status }}</span></td>
+                            <td>{{ order.created_at }}</td>
+                            <td>
+                                {% if order.delivery %}
+                                    <span class="badge bg-secondary">{{ order.delivery.get_status_display }}</span>
+                                {% else %}
+                                    <span class="badge bg-light text-dark">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if order.delivery and order.delivery.delivery_person %}
+                                    {{ order.delivery.delivery_person.user.username }}
+                                {% else %}
+                                    <span class="text-muted">Not assigned</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if order.delivery and order.delivery.delivery_address %}
+                                    {{ order.delivery_address.street_address }}, {{ order.delivery_address.city }}
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if order.delivery and order.delivery.status == 'pending' %}
+                                    <form class="assign-delivery-form d-flex gap-2 flex-wrap" data-order-id="{{ order.id }}" method="post" action="{% url 'assign_delivery_person' order.id %}">
+                                        {% csrf_token %}
+                                        <select name="delivery_person" class="form-select form-select-sm" required>
+                                            <option value="">Choose delivery person</option>
+                                            {% for person in delivery_persons %}
+                                                <option value="{{ person.id }}">{{ person.user.username }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="submit" class="btn btn-sm btn-primary">Assign</button>
+                                    </form>
+                                {% elif order.delivery and order.delivery.delivery_person %}
+                                    <span class="text-success">Assigned</span>
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0">Users</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Joined</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>{{ user.username }}</td>
+                            <td>{{ user.email }}</td>
+                            <td><span class="badge bg-secondary text-capitalize">{{ user.userprofile.role }}</span></td>
+                            <td>{{ user.date_joined }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
 
-<h2>Orders</h2>
-
-<table border="1" cellpadding="10">
-    <tr>
-        <th>Order ID</th>
-        <th>Customer</th>
-        <th>Total</th>
-        <th>Status</th>
-        <th>Created</th>
-        <th>Delivery Status</th>
-        <th>Delivery Person</th>
-        <th>Address</th>
-        <th>Action</th>
-    </tr>
-
-    {% for order in orders %}
-    <tr>
-        <td>{{ order.id }}</td>
-        <td>{{ order.user.username }}</td>
-        <td>₹{{ order.total }}</td>
-        <td>{{ order.status }}</td>
-        <td>{{ order.created_at }}</td>
-        <td>
-            {% if order.delivery %}
-                {{ order.delivery.get_status_display }}
-            {% else %}
-                N/A
-            {% endif %}
-        </td>
-        <td>
-            {% if order.delivery and order.delivery.delivery_person %}
-                {{ order.delivery.delivery_person.user.username }}
-            {% else %}
-                Not assigned
-            {% endif %}
-        </td>
-        <td>
-            {% if order.delivery and order.delivery.delivery_address %}
-                {{ order.delivery_address.street_address }}, {{ order.delivery_address.city }}
-            {% else %}
-                N/A
-            {% endif %}
-        </td>
-        <td>
-            {% if order.delivery and order.delivery.status == 'pending' %}
-                <form method="post" action="{% url 'assign_delivery_person' order.id %}">
-                    {% csrf_token %}
-                    <select name="delivery_person" required>
-                        <option value="">Choose delivery person</option>
-                        {% for person in delivery_persons %}
-                            <option value="{{ person.id }}">{{ person.user.username }}</option>
-                        {% endfor %}
-                    </select>
-                    <button type="submit">Assign</button>
-                </form>
-            {% elif order.delivery and order.delivery.delivery_person %}
-                Assigned to {{ order.delivery.delivery_person.user.username }}
-            {% else %}
-                N/A
-            {% endif %}
-        </td>
-    </tr>
-    {% endfor %}
-</table>
-
-<h2>Users</h2>
-
-<table border="1" cellpadding="10">
-    <tr>
-        <th>Username</th>
-        <th>Email</th>
-        <th>Role</th>
-        <th>Joined</th>
-    </tr>
-
-    {% for user in users %}
-    <tr>
-        <td>{{ user.username }}</td>
-        <td>{{ user.email }}</td>
-        <td>{{ user.userprofile.role }}</td>
-        <td>{{ user.date_joined }}</td>
-    </tr>
-    {% endfor %}
-</table>
-
-</body>
-</html>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.assign-delivery-form').forEach(function (form) {
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', form.action, true);
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.setRequestHeader('X-CSRFToken', form.querySelector('[name=csrfmiddlewaretoken]').value);
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === 4) {
+            window.location.reload();
+          }
+        };
+        xhr.send(new FormData(form));
+      });
+    });
+  });
+</script>
+{% endblock %}
