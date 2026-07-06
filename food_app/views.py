@@ -345,6 +345,25 @@ def user_register(request):
 # ============ DELIVERY SYSTEM VIEWS ============
 
 @login_required(login_url="login")
+def user_dashboard(request):
+    """Show a personalized dashboard for the authenticated customer."""
+    orders = request.user.order_set.select_related("delivery_address").prefetch_related("items__product").order_by("-created_at")[:5]
+    addresses = request.user.delivery_addresses.all().order_by("-is_default", "id")
+    cart_obj = Cart.objects.filter(user=request.user, active=True).first()
+    cart_items = cart_obj.items.select_related("product").all() if cart_obj else []
+    total_orders = request.user.order_set.count()
+    total_spent = request.user.order_set.aggregate(total_spent=Sum("total"))["total_spent"] or 0
+
+    return render(request, "food_app/user_dashboard.html", {
+        "orders": orders,
+        "addresses": addresses,
+        "cart_items": cart_items,
+        "total_orders": total_orders,
+        "total_spent": total_spent,
+    })
+
+
+@login_required(login_url="login")
 def delivery_addresses(request):
     """List user's delivery addresses"""
     addresses = request.user.delivery_addresses.all()

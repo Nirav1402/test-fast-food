@@ -34,6 +34,22 @@ class LoginRoleTests(TestCase):
 
 
 class DeliveryAddressAjaxTests(TestCase):
+    def test_user_dashboard_requires_login(self):
+        response = self.client.get(reverse("user_dashboard"))
+
+        self.assertEqual(response.status_code, 302)
+
+    def test_user_dashboard_shows_summary_for_authenticated_user(self):
+        user = User.objects.create_user(username="dashboarduser", password="pass123")
+        UserProfile.objects.create(user=user, role="customer")
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("user_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Dashboard")
+        self.assertContains(response, user.username)
+
     def test_home_page_renders_global_csrf_token(self):
         response = self.client.get(reverse("home"))
 

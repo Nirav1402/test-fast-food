@@ -1,0 +1,129 @@
+{% extends 'food_app/base.html' %}
+
+{% block title %}User Dashboard - FastFood{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card shadow-sm border-0">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h2 class="h4 mb-1">Welcome back, {{ user.username }}!</h2>
+            <p class="text-muted mb-0">Here’s a quick snapshot of your account.</p>
+          </div>
+          <span class="badge bg-danger rounded-pill px-3 py-2">Customer Dashboard</span>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-md-4">
+            <div class="border rounded-3 p-3 bg-light">
+              <h6 class="text-muted mb-1">Total Orders</h6>
+              <h3 class="mb-0">{{ total_orders }}</h3>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="border rounded-3 p-3 bg-light">
+              <h6 class="text-muted mb-1">Total Spent</h6>
+              <h3 class="mb-0">₹{{ total_spent|floatformat:2 }}</h3>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="border rounded-3 p-3 bg-light">
+              <h6 class="text-muted mb-1">Saved Addresses</h6>
+              <h3 class="mb-0">{{ addresses.count }}</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card shadow-sm border-0">
+      <div class="card-body p-4">
+        <h5 class="card-title">Quick Actions</h5>
+        <div class="d-grid gap-2">
+          <a href="{% url 'product_list' %}" class="btn btn-outline-danger">Browse Menu</a>
+          <a href="{% url 'cart' %}" class="btn btn-danger">View Cart</a>
+          <a href="{% url 'delivery_addresses' %}" class="btn btn-outline-secondary">Manage Addresses</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="card shadow-sm border-0">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="mb-0">Recent Orders</h5>
+          <a href="{% url 'order_history' %}" class="btn btn-sm btn-outline-danger">View All</a>
+        </div>
+
+        {% if orders %}
+          <div class="table-responsive">
+            <table class="table align-middle">
+              <thead>
+                <tr>
+                  <th>Order #</th>
+                  <th>Placed</th>
+                  <th>Status</th>
+                  <th>Total</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for order in orders %}
+                <tr>
+                  <td>#{{ order.id }}</td>
+                  <td>{{ order.created_at|date:"M d, Y" }}</td>
+                  <td><span class="badge bg-warning text-dark">{{ order.status }}</span></td>
+                  <td>₹{{ order.total|floatformat:2 }}</td>
+                  <td><a href="{% url 'order_detail' order.id %}" class="btn btn-sm btn-outline-danger">Details</a></td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="alert alert-light mb-0">You haven’t placed any orders yet.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="card shadow-sm border-0">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="mb-0">Saved Delivery Addresses</h5>
+          <a href="{% url 'add_delivery_address' %}" class="btn btn-sm btn-outline-danger">Add New</a>
+        </div>
+
+        {% if addresses %}
+          <div class="row g-3">
+            {% for address in addresses %}
+            <div class="col-md-6">
+              <div class="border rounded-3 p-3 h-100">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div>
+                    <strong>{{ address.street_address }}</strong>
+                    <p class="mb-1 text-muted">{{ address.city }} · {{ address.postal_code }}</p>
+                    <p class="mb-0 text-muted">Phone: {{ address.phone }}</p>
+                  </div>
+                  {% if address.is_default %}
+                    <span class="badge bg-success">Default</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="alert alert-light mb-0">No delivery addresses saved yet.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
