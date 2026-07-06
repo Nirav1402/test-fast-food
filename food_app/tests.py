@@ -1,8 +1,10 @@
+from decimal import Decimal
+
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import Category, DeliveryAddress, Product, UserProfile
+from .models import Category, DeliveryAddress, Delivery, DeliveryPerson, Order, Product, UserProfile
 
 
 class LoginRoleTests(TestCase):
@@ -38,6 +40,74 @@ class DeliveryAddressAjaxTests(TestCase):
         response = self.client.get(reverse("user_dashboard"))
 
         self.assertEqual(response.status_code, 302)
+
+    def test_delivery_user_is_redirected_from_customer_dashboard(self):
+        user = User.objects.create_user(username="deliverydashboard", password="pass123")
+        UserProfile.objects.create(user=user, role="delivery")
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("user_dashboard"))
+
+        self.assertRedirects(response, reverse("delivery_dashboard"))
+
+    def test_admin_user_is_redirected_from_customer_dashboard(self):
+        user = User.objects.create_user(username="admindashboard", password="pass123")
+        UserProfile.objects.create(user=user, role="admin")
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("user_dashboard"))
+
+        self.assertRedirects(response, reverse("admin_dashboard"))
+
+    def test_admin_can_add_inventory_item_from_dashboard(self):
+        user = User.objects.create_user(username="admininventory", password="pass123")
+        UserProfile.objects.create(user=user, role="admin")
+        category = Category.objects.create(name="Desserts", slug="desserts")
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse("admin_dashboard"),
+            {
+                "inventory_action": "add",
+                "name": "Chocolate Cake",
+                "description": "Rich chocolate cake",
+                "price": "6.50",
+                "category": category.id,
+                "available": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Product.objects.filter(name="Chocolate Cake").exists())
+
+    def test_delivery_user_is_redirected_from_cart(self):
+        user = User.objects.create_user(username="deliverycart", password="pass123")
+        UserProfile.objects.create(user=user, role="delivery")
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("cart"))
+
+        self.assertRedirects(response, reverse("delivery_dashboard"))
+
+    def test_delivery_dashboard_shows_history_and_earnings(self):
+        user = User.objects.create_user(username="deliveryhistory", password="pass123")
+        UserProfile.objects.create(user=user, role="delivery")
+        delivery_person = DeliveryPerson.objects.create(user=user, phone="5551234")
+        customer = User.objects.create_user(username="customerhistory", password="pass123")
+
+        completed_order = Order.objects.create(user=customer, total=Decimal("12.50"), status="Delivered")
+        Delivery.objects.create(order=completed_order, delivery_person=delivery_person, status="delivered")
+
+        active_order = Order.objects.create(user=customer, total=Decimal("8.00"), status="Pending")
+        Delivery.objects.create(order=active_order, delivery_person=delivery_person, status="assigned")
+
+        self.client.force_login(user)
+        response = self.client.get(reverse("delivery_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Total Earnings")
+        self.assertContains(response, "Completed Deliveries")
+        self.assertContains(response, "₹12.50")
 
     def test_user_dashboard_shows_summary_for_authenticated_user(self):
         user = User.objects.create_user(username="dashboarduser", password="pass123")

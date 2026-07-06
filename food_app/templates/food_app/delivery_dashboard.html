@@ -7,10 +7,38 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold mb-1">🚴 Delivery Dashboard</h2>
-            <p class="text-muted mb-0">Welcome, {{ request.user.username }}. Here are your assigned deliveries.</p>
+            <p class="text-muted mb-0">Welcome, {{ request.user.username }}. Here is your delivery performance summary.</p>
         </div>
     </div>
 
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Total Earnings</h6>
+                    <h3 class="fw-bold mb-0">₹{{ total_earnings }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Completed Deliveries</h6>
+                    <h3 class="fw-bold mb-0">{{ completed_count }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Active Deliveries</h6>
+                    <h3 class="fw-bold mb-0">{{ active_count }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h4 class="fw-semibold mb-3">Assigned Deliveries</h4>
     {% if assigned_deliveries %}
         {% for delivery in assigned_deliveries %}
         <div class="card border-0 shadow-sm mb-4">

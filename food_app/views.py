@@ -16,6 +16,25 @@ from .forms import DeliveryAddressForm
 import io
 
 
+def get_user_role(user):
+    try:
+        return user.userprofile.role
+    except UserProfile.DoesNotExist:
+        return "customer"
+
+
+def redirect_for_role(request):
+    if request.user.is_authenticated:
+        role = get_user_role(request.user)
+        if role == "admin":
+            messages.info(request, "Admin staff use the admin dashboard.")
+            return redirect("admin_dashboard")
+        if role == "delivery":
+            messages.info(request, "Delivery staff use the delivery dashboard.")
+            return redirect("delivery_dashboard")
+    return None
+
+
 @login_required(login_url="login")
 def place_order(request):
     cart_obj = get_object_or_404(Cart, user=request.user, active=True)
@@ -108,26 +127,46 @@ def place_order(request):
     return response
 
 def home(request):
+    redirect_response = redirect_for_role(request)
+    if redirect_response:
+        return redirect_response
+
     categories = Category.objects.all() if hasattr(Category, 'objects') else []
     featured = Product.objects.filter(available=True)[:8] if hasattr(Product, 'objects') else []
     return render(request, "food_app/index.html", {"categories": categories, "products": featured})
 
 def product_list(request):
+    redirect_response = redirect_for_role(request)
+    if redirect_response:
+        return redirect_response
+
     # show all products grouped by category
     categories = Category.objects.prefetch_related('products').all()
     return render(request, "food_app/menu.html", {"categories": categories})
 
 def category_products(request, slug):
+    redirect_response = redirect_for_role(request)
+    if redirect_response:
+        return redirect_response
+
     category = get_object_or_404(Category, slug=slug)
     products = category.products.filter(available=True)
     return render(request, "food_app/categories.html", {"category": category, "products": products})
 
 def product_detail(request, product_id):
+    redirect_response = redirect_for_role(request)
+    if redirect_response:
+        return redirect_response
+
     product = get_object_or_404(Product, pk=product_id)
     return render(request, "food_app/product_detail.html", {"product": product})
 
 @login_required(login_url="login")
 def cart(request):
+    redirect_response = redirect_for_role(request)
+    if redirect_response:
+        return redirect_response
+
     # find active cart for user or create one
     cart_obj, created = Cart.objects.get_or_create(user=request.user, active=True)
     cart_items = cart_obj.items.select_related('product').all()
@@ -191,6 +230,10 @@ def remove_from_cart(request, product_id):
 
 @login_required(login_url="login")
 def checkout(request):
+    redirect_response = redirect_for_role(request)
+    if redirect_response:
+        return redirect_response
+
     cart_obj = get_object_or_404(Cart, user=request.user, active=True)
     cart_items = cart_obj.items.select_related('product').all()
     total_price = cart_obj.total_price
@@ -229,6 +272,10 @@ def api_products(request):
 
 @login_required(login_url="login")
 def api_delivery_addresses(request):
+    redirect_response = redirect_for_role(request)
+    if redirect_response:
+        return redirect_response
+
     addresses = request.user.delivery_addresses.all().order_by("-is_default", "id")
     payload = {
         "count": addresses.count(),
@@ -249,6 +296,10 @@ def api_delivery_addresses(request):
 
 @login_required(login_url="login")
 def api_orders(request):
+    redirect_response = redirect_for_role(request)
+    if redirect_response:
+        return redirect_response
+
     orders = Order.objects.filter(user=request.user).select_related("delivery_address").prefetch_related("items__product").order_by("-created_at")
     payload = {
         "count": orders.count(),
@@ -347,6 +398,10 @@ def user_register(request):
 @login_required(login_url="login")
 def user_dashboard(request):
     """Show a personalized dashboard for the authenticated customer."""
+    redirect_response = redirect_for_role(request)
+    if redirect_response:
+        return redirect_response
+
     orders = request.user.order_set.select_related("delivery_address").prefetch_related("items__product").order_by("-created_at")[:5]
     addresses = request.user.delivery_addresses.all().order_by("-is_default", "id")
     cart_obj = Cart.objects.filter(user=request.user, active=True).first()
@@ -366,6 +421,10 @@ def user_dashboard(request):
 @login_required(login_url="login")
 def delivery_addresses(request):
     """List user's delivery addresses"""
+    redirect_response = redirect_for_role(request)
+    if redirect_response:
+        return redirect_response
+
     addresses = request.user.delivery_addresses.all()
     return render(request, "food_app/delivery_addresses.html", {"addresses": addresses})
 
@@ -373,6 +432,10 @@ def delivery_addresses(request):
 @login_required(login_url="login")
 def add_delivery_address(request):
     """Add new delivery address"""
+    redirect_response = redirect_for_role(request)
+    if redirect_response:
+        return redirect_response
+
     if request.method == "POST":
         form = DeliveryAddressForm(request.POST)
         if form.is_valid():
@@ -409,6 +472,10 @@ def add_delivery_address(request):
 @login_required(login_url="login")
 def edit_delivery_address(request, address_id):
     """Edit delivery address"""
+    redirect_response = redirect_for_role(request)
+    if redirect_response:
+        return redirect_response
+
     address = get_object_or_404(DeliveryAddress, id=address_id, user=request.user)
     
     if request.method == "POST":
@@ -431,6 +498,10 @@ def edit_delivery_address(request, address_id):
 @login_required(login_url="login")
 def delete_delivery_address(request, address_id):
     """Delete delivery address"""
+    redirect_response = redirect_for_role(request)
+    if redirect_response:
+        return redirect_response
+
     address = get_object_or_404(DeliveryAddress, id=address_id, user=request.user)
     address.delete()
     messages.success(request, "Delivery address deleted!")
@@ -440,6 +511,10 @@ def delete_delivery_address(request, address_id):
 @login_required(login_url="login")
 def order_detail(request, order_id):
     """View order details and delivery tracking"""
+    redirect_response = redirect_for_role(request)
+    if redirect_response:
+        return redirect_response
+
     order = get_object_or_404(Order, id=order_id, user=request.user)
     order_items = order.items.all()
     delivery = getattr(order, 'delivery', None)
@@ -454,6 +529,10 @@ def order_detail(request, order_id):
 @login_required(login_url="login")
 def order_status(request, order_id):
     """View order status for a user's order."""
+    redirect_response = redirect_for_role(request)
+    if redirect_response:
+        return redirect_response
+
     order = get_object_or_404(Order, id=order_id, user=request.user)
     delivery = getattr(order, 'delivery', None)
     order_items = order.items.all()
@@ -468,6 +547,10 @@ def order_status(request, order_id):
 @login_required(login_url="login")
 def order_history(request):
     """View user's order history"""
+    redirect_response = redirect_for_role(request)
+    if redirect_response:
+        return redirect_response
+
     orders = request.user.order_set.all().order_by('-created_at')
     
     return render(request, "food_app/order_history.html", {
@@ -478,6 +561,10 @@ def order_history(request):
 @login_required(login_url="login")
 def track_order(request, order_id):
     """Real-time order tracking"""
+    redirect_response = redirect_for_role(request)
+    if redirect_response:
+        return redirect_response
+
     order = get_object_or_404(Order, id=order_id, user=request.user)
     delivery = getattr(order, 'delivery', None)
     
@@ -499,6 +586,10 @@ def track_order(request, order_id):
 @login_required(login_url="login")
 def delivery_status_api(request, order_id):
     """API endpoint for delivery status (AJAX)"""
+    redirect_response = redirect_for_role(request)
+    if redirect_response:
+        return redirect_response
+
     order = get_object_or_404(Order, id=order_id, user=request.user)
     delivery = getattr(order, 'delivery', None)
     
@@ -531,6 +622,48 @@ def admin_dashboard(request):
         messages.error(request, "Access Denied!")
         return redirect("home")
 
+    if request.method == "POST":
+        inventory_action = request.POST.get("inventory_action")
+        if inventory_action == "add":
+            name = request.POST.get("name", "").strip()
+            description = request.POST.get("description", "").strip()
+            price = request.POST.get("price", "0")
+            category_id = request.POST.get("category")
+            available = request.POST.get("available") == "on"
+            image = request.FILES.get("image")
+            if name and category_id:
+                category = get_object_or_404(Category, id=category_id)
+                Product.objects.create(
+                    category=category,
+                    name=name,
+                    description=description,
+                    price=price,
+                    available=available,
+                    image=image,
+                )
+                messages.success(request, f"Product '{name}' added to inventory.")
+            else:
+                messages.error(request, "Please provide a product name and category.")
+            return redirect("admin_dashboard")
+
+        if inventory_action == "toggle":
+            product_id = request.POST.get("product_id")
+            if product_id:
+                product = get_object_or_404(Product, id=product_id)
+                product.available = not product.available
+                product.save()
+                messages.success(request, f"Availability updated for '{product.name}'.")
+            return redirect("admin_dashboard")
+
+        if inventory_action == "delete":
+            product_id = request.POST.get("product_id")
+            if product_id:
+                product = get_object_or_404(Product, id=product_id)
+                product_name = product.name
+                product.delete()
+                messages.success(request, f"Product '{product_name}' removed from inventory.")
+            return redirect("admin_dashboard")
+
     orders = Order.objects.select_related("user", "delivery_address").prefetch_related("items__product", "delivery__delivery_person").all().order_by("-created_at")
     users = User.objects.filter(userprofile__isnull=False).select_related("userprofile").order_by("-date_joined")
     total_orders = orders.count()
@@ -540,11 +673,15 @@ def admin_dashboard(request):
     total_delivery_persons = UserProfile.objects.filter(role="delivery").count()
     total_admins = UserProfile.objects.filter(role="admin").count()
     delivery_persons = DeliveryPerson.objects.all()
+    inventory_items = Product.objects.select_related("category").order_by("category__name", "name")
+    categories = Category.objects.all()
 
     context = {
         "orders": orders,
         "users": users,
         "delivery_persons": delivery_persons,
+        "inventory_items": inventory_items,
+        "categories": categories,
         "total_orders": total_orders,
         "total_users": total_users,
         "total_revenue": total_revenue,
@@ -633,15 +770,23 @@ def mark_delivery_delivered(request, delivery_id):
 
 @login_required
 def delivery_dashboard(request):
-    if request.user.userprofile.role != "delivery":
+    if get_user_role(request.user) != "delivery":
         messages.error(request, "Access Denied!")
         return redirect("home")
 
     delivery_person = DeliveryPerson.objects.filter(user=request.user).first()
-    assigned_deliveries = []
+    assigned_deliveries = Delivery.objects.none()
+    completed_deliveries = Delivery.objects.none()
+    total_earnings = 0
     if delivery_person:
         assigned_deliveries = Delivery.objects.select_related("order__user", "order__delivery_address").filter(delivery_person=delivery_person).order_by("-created_at")
+        completed_deliveries = assigned_deliveries.filter(status="delivered")
+        total_earnings = completed_deliveries.aggregate(total_earnings=Sum("order__total"))["total_earnings"] or 0
 
     return render(request, "food_app/delivery_dashboard.html", {
         "assigned_deliveries": assigned_deliveries,
+        "completed_deliveries": completed_deliveries,
+        "completed_count": completed_deliveries.count(),
+        "active_count": assigned_deliveries.filter(status__in=["assigned", "picked_up", "in_transit"]).count(),
+        "total_earnings": total_earnings,
     })
