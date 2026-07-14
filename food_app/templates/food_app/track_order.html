@@ -67,6 +67,12 @@
             <p id="status-text">
                 <strong>Status:</strong> <span class="badge badge-{% if delivery.status == 'delivered' %}success{% elif delivery.status == 'cancelled' %}danger{% else %}warning{% endif %}" id="status-badge">{{ delivery.get_status_display }}</span>
             </p>
+            {% if delivery.status != 'delivered' and delivery.delivery_code %}
+            <p>
+                <strong>Delivery Verification Key:</strong>
+                <span class="badge fs-5 px-3 py-2" style="background:#ff4d4d;color:#fff;letter-spacing:4px;font-weight:700;font-family:monospace;">{{ delivery.delivery_code }}</span>
+            </p>
+            {% endif %}
             <p id="updated-time">
                 <strong>Last Updated:</strong> <span id="updated-time-text">{{ delivery.updated_at|date:"d M Y, h:i A" }}</span>
             </p>

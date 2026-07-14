@@ -20,7 +20,7 @@
             <div class="row">
                 <div class="col-md-6">
                     <p><strong>Order Date:</strong> {{ order.created_at|date:"d M Y, h:i A" }}</p>
-                    <p><strong>Order Status:</strong> <span class="badge badge-info">{{ order.status }}</span></p>
+                    <p><strong>Order Status:</strong> <span class="badge {% if order.status == 'Delivered' %}bg-success{% elif order.status == 'Cancelled' %}bg-danger{% elif order.status == 'Out for Delivery' %}bg-primary{% elif order.status == 'Assigned' %}bg-info text-dark{% else %}bg-warning text-dark{% endif %}">{{ order.status }}</span></p>
                     <p><strong>Total Amount:</strong> <strong class="text-success">₹{{ order.total }}</strong></p>
                 </div>
                 <div class="col-md-6">
@@ -70,6 +70,13 @@
                     {% endif %}
                     {% if delivery.actual_delivery_time %}
                     <p><strong>Actual Delivery:</strong> {{ delivery.actual_delivery_time|date:"d M Y, h:i A" }}</p>
+                    {% endif %}
+                    {% if delivery.status != 'delivered' and delivery.delivery_code %}
+                    <p>
+                        <strong>Delivery Verification Key:</strong>
+                        <span class="badge fs-5 px-3 py-2" style="background:#ff4d4d;color:#fff;letter-spacing:4px;font-weight:700;font-family:monospace;">{{ delivery.delivery_code }}</span><br>
+                        <small class="text-muted">Share this key with the delivery person when your order arrives.</small>
+                    </p>
                     {% endif %}
                 </div>
             </div>

@@ -1,6 +1,7 @@
-from django.db.models.signals import post_migrate
+from django.db.models.signals import post_migrate, post_save
 from django.dispatch import receiver
 from django.apps import apps
+from django.contrib.auth.models import User
 
 @receiver(post_migrate)
 def create_default_categories(sender, **kwargs):
@@ -18,3 +19,11 @@ def create_default_categories(sender, **kwargs):
     ]
     for name, desc in defaults:
         obj, created = Category.objects.get_or_create(name=name, defaults={'description': desc})
+
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    """Ensure every User has a UserProfile with role 'customer' by default."""
+    if created:
+        UserProfile = apps.get_model('food_app', 'UserProfile')
+        UserProfile.objects.get_or_create(user=instance, defaults={'role': 'customer'})

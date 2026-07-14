@@ -38,6 +38,7 @@ urlpatterns = [
     path("api/products/", views.api_products, name="api_products"),
     path("api/delivery-addresses/", views.api_delivery_addresses, name="api_delivery_addresses"),
     path("api/orders/", views.api_orders, name="api_orders"),
+    path("api/deliveries/", views.api_deliveries, name="api_deliveries"),
     path("react/", views.react_app, name="react_app"),
 ]
 

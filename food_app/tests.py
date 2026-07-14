@@ -209,3 +209,48 @@ class DeliveryAddressAjaxTests(TestCase):
         response = self.client.get(reverse("api_delivery_addresses"))
 
         self.assertEqual(response.status_code, 302)
+
+
+class DeliveryVerificationCodeTests(TestCase):
+    def setUp(self):
+        self.delivery_user = User.objects.create_user(username="deliveryotp", password="pass123")
+        UserProfile.objects.create(user=self.delivery_user, role="delivery")
+        self.delivery_person = DeliveryPerson.objects.create(user=self.delivery_user, phone="5558888")
+
+        self.customer = User.objects.create_user(username="customerotp", password="pass123")
+        self.order = Order.objects.create(user=self.customer, total=Decimal("15.00"), status="Pending")
+        self.delivery = Delivery.objects.create(
+            order=self.order,
+            delivery_person=self.delivery_person,
+            status="picked_up",
+            delivery_code="123456",
+        )
+
+    def test_mark_delivery_delivered_requires_valid_code(self):
+        self.client.force_login(self.delivery_user)
+
+        response = self.client.post(
+            reverse("mark_delivery_delivered", args=[self.delivery.id]),
+            {"delivery_code": "000000"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.delivery.refresh_from_db()
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.delivery.status, "picked_up")
+        self.assertFalse(response.json()["success"])
+
+    def test_mark_delivery_delivered_succeeds_with_valid_code(self):
+        self.client.force_login(self.delivery_user)
+
+        response = self.client.post(
+            reverse("mark_delivery_delivered", args=[self.delivery.id]),
+            {"delivery_code": "123456"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.delivery.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.delivery.status, "delivered")
+        self.assertIsNotNone(self.delivery.actual_delivery_time)
+        self.assertTrue(response.json()["success"])

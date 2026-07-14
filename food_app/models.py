@@ -1,3 +1,5 @@
+import secrets
+
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -126,8 +128,14 @@ class Delivery(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     estimated_delivery_time = models.DateTimeField(blank=True, null=True)
     actual_delivery_time = models.DateTimeField(blank=True, null=True)
+    delivery_code = models.CharField(max_length=10, default="", blank=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.delivery_code:
+            self.delivery_code = "".join(str(secrets.randbelow(10)) for _ in range(6))
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Delivery for Order {self.order.id} - {self.status}"

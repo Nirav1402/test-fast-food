@@ -14,6 +14,9 @@ function OrdersPage({ orders }) {
               <p>Status: {order.status}</p>
               <p>Total: ₹{order.total}</p>
               <p>Address: {order.delivery_address || 'N/A'}</p>
+              {order.delivery_verification_code && (
+                <p>Delivery key: <strong style={{display:'inline-block', background:'#ff4d4d', color:'#fff', padding:'4px 14px', borderRadius:'6px', letterSpacing:'4px', fontFamily:'monospace', fontSize:'1.1em'}}>{order.delivery_verification_code}</strong></p>
+              )}
               <ul>
                 {order.items.map((item, index) => <li key={index}>{item.name} × {item.quantity}</li>)}
               </ul>

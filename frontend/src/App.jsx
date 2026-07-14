@@ -72,21 +72,45 @@ function App() {
     body.append('password', authForm.password);
     if (authMode === 'register') body.append('email', authForm.email);
 
+    const headers = {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-CSRFToken': getCookie('csrftoken')
+    };
+
+    if (authMode === 'login') {
+      headers['X-Requested-With'] = 'XMLHttpRequest';
+    }
+
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'X-CSRFToken': getCookie('csrftoken')
-      },
+      headers,
       body: body.toString(),
       credentials: 'same-origin'
     });
 
+    if (authMode === 'login') {
+      let payload = {};
+      try {
+        payload = await response.json();
+      } catch (error) {
+        payload = {};
+      }
+
+      if (response.ok && payload.success) {
+        setMessage('Logged in successfully.');
+        setActiveView('home');
+      } else {
+        setMessage(payload.message || 'Authentication failed.');
+      }
+      return;
+    }
+
     if (response.ok) {
-      setMessage(authMode === 'login' ? 'Logged in successfully.' : 'Account created successfully.');
-      setActiveView('home');
+      setMessage('Account created successfully. Please sign in.');
+      setAuthMode('login');
+      setAuthForm((current) => ({ ...current, password: '' }));
     } else {
-      setMessage('Authentication failed.');
+      setMessage('Registration failed.');
     }
   };
 
@@ -159,7 +183,7 @@ function App() {
       )}
 
       {activeView === 'admin' && <AdminPage orders={orders} onNavigate={setActiveView} />}
-      {activeView === 'delivery' && <DeliveryPage orders={orders} onNavigate={setActiveView} />}
+      {activeView === 'delivery' && <DeliveryPage onNavigate={setActiveView} />}
 
       {message && <div className="card" style={{ marginTop: 16 }}>{message}</div>}
     </div>

@@ -86,6 +86,17 @@
                     {% elif delivery.status == 'picked_up' or delivery.status == 'in_transit' %}
                         <form class="deliver-delivery-form d-inline" method="post" action="{% url 'mark_delivery_delivered' delivery.id %}">
                             {% csrf_token %}
+                            <input
+                                type="text"
+                                name="delivery_code"
+                                class="form-control d-inline-block"
+                                placeholder="Enter customer key"
+                                pattern="[0-9]{6}"
+                                inputmode="numeric"
+                                maxlength="6"
+                                required
+                                style="width: 170px;"
+                            >
                             <button type="submit" class="btn btn-primary">Mark as Delivered</button>
                         </form>
                     {% endif %}
@@ -128,7 +139,21 @@
         xhr.setRequestHeader('X-CSRFToken', form.querySelector('[name=csrfmiddlewaretoken]').value);
         xhr.onreadystatechange = function () {
           if (xhr.readyState === 4) {
-            window.location.reload();
+            if (xhr.status >= 200 && xhr.status < 300) {
+              window.location.reload();
+              return;
+            }
+
+            let errorMessage = 'Unable to mark delivery as completed.';
+            try {
+              const response = JSON.parse(xhr.responseText);
+              if (response.message) {
+                errorMessage = response.message;
+              }
+            } catch (error) {
+              // Keep default message if response is not JSON.
+            }
+            alert(errorMessage);
           }
         };
         xhr.send(new FormData(form));

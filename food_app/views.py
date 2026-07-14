@@ -8,6 +8,7 @@ from django.contrib.auth.models import User
 from django.http import HttpResponse, JsonResponse
 from django.core.serializers.json import DjangoJSONEncoder
 from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.utils import timezone
 from django.db.models import Sum
 from reportlab.pdfgen import canvas
@@ -16,11 +17,36 @@ from .forms import DeliveryAddressForm
 import io
 
 
+def generate_delivery_code():
+    from secrets import randbelow
+
+    return "".join(str(randbelow(10)) for _ in range(6))
+
+
 def get_user_role(user):
     try:
         return user.userprofile.role
     except UserProfile.DoesNotExist:
         return "customer"
+
+
+# Keeps Order.status (shown to customers/admins) in sync with Delivery.status
+DELIVERY_TO_ORDER_STATUS = {
+    "pending": "Pending",
+    "assigned": "Assigned",
+    "picked_up": "Out for Delivery",
+    "in_transit": "Out for Delivery",
+    "delivered": "Delivered",
+    "cancelled": "Cancelled",
+}
+
+
+def sync_order_status(delivery):
+    """Update the parent Order.status to reflect the current Delivery.status."""
+    new_status = DELIVERY_TO_ORDER_STATUS.get(delivery.status, delivery.status)
+    if delivery.order.status != new_status:
+        delivery.order.status = new_status
+        delivery.order.save(update_fields=["status"])
 
 
 def redirect_for_role(request):
@@ -83,7 +109,8 @@ def place_order(request):
     delivery = Delivery.objects.create(
         order=order,
         status='pending',
-        estimated_delivery_time=estimated_time
+        estimated_delivery_time=estimated_time,
+        delivery_code=generate_delivery_code(),
     )
 
     # ---- Generate PDF invoice ----
@@ -247,6 +274,7 @@ def checkout(request):
         "default_address": default_address
     })
 
+@ensure_csrf_cookie
 def react_app(request):
     return render(request, "food_app/react_app.html")
 
@@ -310,6 +338,11 @@ def api_orders(request):
                 "total": float(order.total),
                 "created_at": order.created_at.isoformat(),
                 "delivery_address": order.delivery_address.street_address if order.delivery_address else None,
+                "delivery_verification_code": (
+                    order.delivery.delivery_code
+                    if hasattr(order, "delivery") and order.delivery and order.delivery.status != "delivered"
+                    else None
+                ),
                 "items": [
                     {
                         "name": item.product.name if item.product else "Product",
@@ -381,8 +414,6 @@ def user_register(request):
             email=email,
             password=password
         )
-
-        user.save()
 
         UserProfile.objects.create(
             user=user,
@@ -618,7 +649,7 @@ from django.contrib.auth.decorators import login_required
 @login_required
 def admin_dashboard(request):
 
-    if request.user.userprofile.role != "admin":
+    if get_user_role(request.user) != "admin":
         messages.error(request, "Access Denied!")
         return redirect("home")
 
@@ -695,7 +726,7 @@ def admin_dashboard(request):
 @require_POST
 @login_required
 def assign_delivery_person(request, order_id):
-    if request.user.userprofile.role != "admin":
+    if get_user_role(request.user) != "admin":
         messages.error(request, "Access Denied!")
         return redirect("home")
 
@@ -712,9 +743,12 @@ def assign_delivery_person(request, order_id):
 
     delivery_person = get_object_or_404(DeliveryPerson, id=delivery_person_id)
     delivery.delivery_person = delivery_person
+    if not delivery.delivery_code:
+        delivery.delivery_code = generate_delivery_code()
     if delivery.status == "pending":
         delivery.status = "assigned"
     delivery.save()
+    sync_order_status(delivery)
 
     messages.success(request, f"Order #{order.id} assigned to {delivery_person.user.username}.")
 
@@ -737,6 +771,7 @@ def accept_delivery(request, delivery_id):
 
     delivery.status = "picked_up"
     delivery.save()
+    sync_order_status(delivery)
 
     messages.success(request, f"You have accepted Order #{delivery.order.id}.")
 
@@ -754,12 +789,31 @@ def mark_delivery_delivered(request, delivery_id):
 
     delivery = get_object_or_404(Delivery, id=delivery_id, delivery_person__user=request.user)
     if delivery.status not in ["picked_up", "in_transit", "assigned"]:
-        messages.error(request, "This delivery is already completed or cannot be marked delivered.")
+        error_message = "This delivery is already completed or cannot be marked delivered."
+        messages.error(request, error_message)
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"success": False, "message": error_message}, status=400)
+        return redirect("delivery_dashboard")
+
+    entered_code = (request.POST.get("delivery_code") or "").strip()
+    if not entered_code:
+        error_message = "Delivery verification code is required."
+        messages.error(request, error_message)
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"success": False, "message": error_message}, status=400)
+        return redirect("delivery_dashboard")
+
+    if entered_code != delivery.delivery_code:
+        error_message = "Invalid delivery verification code."
+        messages.error(request, error_message)
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"success": False, "message": error_message}, status=400)
         return redirect("delivery_dashboard")
 
     delivery.status = "delivered"
     delivery.actual_delivery_time = timezone.now()
     delivery.save()
+    sync_order_status(delivery)
 
     messages.success(request, f"Order #{delivery.order.id} marked as delivered.")
 
@@ -767,6 +821,43 @@ def mark_delivery_delivered(request, delivery_id):
         return JsonResponse({"success": True, "message": f"Order #{delivery.order.id} marked as delivered."})
 
     return redirect("delivery_dashboard")
+
+@login_required(login_url="login")
+def api_deliveries(request):
+    """API endpoint returning deliveries assigned to the logged-in delivery person."""
+    if get_user_role(request.user) != "delivery":
+        return JsonResponse({"error": "Access denied"}, status=403)
+
+    delivery_person = DeliveryPerson.objects.filter(user=request.user).first()
+    deliveries = Delivery.objects.none()
+    if delivery_person:
+        deliveries = (
+            Delivery.objects.select_related("order__user", "order__delivery_address")
+            .filter(delivery_person=delivery_person)
+            .order_by("-created_at")
+        )
+
+    payload = {
+        "count": deliveries.count(),
+        "deliveries": [
+            {
+                "id": delivery.id,
+                "order_id": delivery.order.id,
+                "status": delivery.status,
+                "status_display": delivery.get_status_display(),
+                "total": float(delivery.order.total),
+                "customer": delivery.order.user.username,
+                "address": delivery.order.delivery_address.street_address if delivery.order.delivery_address else None,
+                "city": delivery.order.delivery_address.city if delivery.order.delivery_address else None,
+                "phone": delivery.order.delivery_address.phone if delivery.order.delivery_address else None,
+                # Note: delivery_code is intentionally excluded here. The customer
+                # provides it to the delivery person; it must not be exposed via this API.
+            }
+            for delivery in deliveries
+        ],
+    }
+    return JsonResponse(payload)
+
 
 @login_required
 def delivery_dashboard(request):
