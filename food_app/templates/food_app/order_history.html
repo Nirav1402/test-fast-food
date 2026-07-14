@@ -29,11 +29,6 @@
                 </div>
                 <div class="d-flex gap-2 flex-wrap justify-content-end">
                     <span class="badge {% if order.status == 'Delivered' %}bg-success{% elif order.status == 'Cancelled' %}bg-danger{% elif order.status == 'Out for Delivery' %}bg-primary{% elif order.status == 'Assigned' %}bg-info text-dark{% else %}bg-warning text-dark{% endif %}">{{ order.status }}</span>
-                    {% if order.delivery %}
-                        <span class="badge {% if order.delivery.status == 'delivered' %}bg-success{% elif order.delivery.status == 'cancelled' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
-                            {{ order.delivery.get_status_display }}
-                        </span>
-                    {% endif %}
                 </div>
             </div>
 

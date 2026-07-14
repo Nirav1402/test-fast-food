@@ -703,7 +703,7 @@ def admin_dashboard(request):
     total_customers = UserProfile.objects.filter(role="customer").count()
     total_delivery_persons = UserProfile.objects.filter(role="delivery").count()
     total_admins = UserProfile.objects.filter(role="admin").count()
-    delivery_persons = DeliveryPerson.objects.all()
+    delivery_persons = DeliveryPerson.objects.filter(user__userprofile__role="delivery")
     inventory_items = Product.objects.select_related("category").order_by("category__name", "name")
     categories = Category.objects.all()
 
@@ -722,6 +722,102 @@ def admin_dashboard(request):
     }
 
     return render(request, "food_app/admin_dashboard.html", context)
+
+
+@require_POST
+@login_required
+def admin_create_user(request):
+    """Admin-only: create a new user account with a chosen role."""
+    if get_user_role(request.user) != "admin":
+        messages.error(request, "Access Denied!")
+        return redirect("home")
+
+    username = request.POST.get("username", "").strip()
+    email = request.POST.get("email", "").strip()
+    password = request.POST.get("password", "")
+    role = request.POST.get("role", "customer")
+    phone = request.POST.get("phone", "").strip()
+
+    if role not in dict(UserProfile.ROLE_CHOICES):
+        role = "customer"
+
+    if not username or not password:
+        messages.error(request, "Username and password are required.")
+        return redirect("admin_dashboard")
+
+    if User.objects.filter(username=username).exists():
+        messages.error(request, f"Username '{username}' already exists.")
+        return redirect("admin_dashboard")
+
+    user = User.objects.create_user(username=username, email=email, password=password)
+    UserProfile.objects.filter(user=user).update(role=role)
+
+    if role == "delivery":
+        DeliveryPerson.objects.get_or_create(user=user, defaults={"phone": phone})
+
+    messages.success(request, f"User '{username}' created as {role}.")
+    return redirect("admin_dashboard")
+
+
+@require_POST
+@login_required
+def update_user_role(request, user_id):
+    """Admin-only: change a user's role (customer/admin/delivery)."""
+    if get_user_role(request.user) != "admin":
+        messages.error(request, "Access Denied!")
+        return redirect("home")
+
+    target_user = get_object_or_404(User, id=user_id)
+    new_role = request.POST.get("role")
+
+    if new_role not in dict(UserProfile.ROLE_CHOICES):
+        messages.error(request, "Invalid role selected.")
+        return redirect("admin_dashboard")
+
+    if target_user == request.user and new_role != "admin":
+        messages.error(request, "You cannot remove your own admin role.")
+        return redirect("admin_dashboard")
+
+    if target_user.userprofile.role == "admin" and new_role != "admin":
+        remaining_admins = UserProfile.objects.filter(role="admin").exclude(user=target_user).count()
+        if remaining_admins == 0:
+            messages.error(request, "Cannot change role: at least one admin must remain.")
+            return redirect("admin_dashboard")
+
+    UserProfile.objects.filter(user=target_user).update(role=new_role)
+
+    if new_role == "delivery":
+        DeliveryPerson.objects.get_or_create(user=target_user, defaults={"phone": ""})
+
+    messages.success(request, f"Updated {target_user.username}'s role to {new_role}.")
+    return redirect("admin_dashboard")
+
+
+@require_POST
+@login_required
+def admin_delete_user(request, user_id):
+    """Admin-only: permanently remove a user account."""
+    if get_user_role(request.user) != "admin":
+        messages.error(request, "Access Denied!")
+        return redirect("home")
+
+    target_user = get_object_or_404(User, id=user_id)
+
+    if target_user == request.user:
+        messages.error(request, "You cannot remove your own account.")
+        return redirect("admin_dashboard")
+
+    if get_user_role(target_user) == "admin":
+        remaining_admins = UserProfile.objects.filter(role="admin").exclude(user=target_user).count()
+        if remaining_admins == 0:
+            messages.error(request, "Cannot remove the only remaining admin.")
+            return redirect("admin_dashboard")
+
+    username = target_user.username
+    target_user.delete()
+    messages.success(request, f"User '{username}' has been removed.")
+    return redirect("admin_dashboard")
+
 
 @require_POST
 @login_required

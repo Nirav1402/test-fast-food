@@ -10,7 +10,7 @@ from .models import Category, DeliveryAddress, Delivery, DeliveryPerson, Order, 
 class LoginRoleTests(TestCase):
     def test_admin_login_ajax_returns_admin_dashboard_redirect(self):
         user = User.objects.create_user(username="adminlogin", password="pass123")
-        UserProfile.objects.create(user=user, role="admin")
+        UserProfile.objects.filter(user=user).update(role="admin")
 
         response = self.client.post(
             reverse("login"),
@@ -23,7 +23,7 @@ class LoginRoleTests(TestCase):
 
     def test_delivery_login_ajax_returns_delivery_dashboard_redirect(self):
         user = User.objects.create_user(username="deliverylogin", password="pass123")
-        UserProfile.objects.create(user=user, role="delivery")
+        UserProfile.objects.filter(user=user).update(role="delivery")
 
         response = self.client.post(
             reverse("login"),
@@ -43,7 +43,7 @@ class DeliveryAddressAjaxTests(TestCase):
 
     def test_delivery_user_is_redirected_from_customer_dashboard(self):
         user = User.objects.create_user(username="deliverydashboard", password="pass123")
-        UserProfile.objects.create(user=user, role="delivery")
+        UserProfile.objects.filter(user=user).update(role="delivery")
         self.client.force_login(user)
 
         response = self.client.get(reverse("user_dashboard"))
@@ -52,7 +52,7 @@ class DeliveryAddressAjaxTests(TestCase):
 
     def test_admin_user_is_redirected_from_customer_dashboard(self):
         user = User.objects.create_user(username="admindashboard", password="pass123")
-        UserProfile.objects.create(user=user, role="admin")
+        UserProfile.objects.filter(user=user).update(role="admin")
         self.client.force_login(user)
 
         response = self.client.get(reverse("user_dashboard"))
@@ -61,8 +61,8 @@ class DeliveryAddressAjaxTests(TestCase):
 
     def test_admin_can_add_inventory_item_from_dashboard(self):
         user = User.objects.create_user(username="admininventory", password="pass123")
-        UserProfile.objects.create(user=user, role="admin")
-        category = Category.objects.create(name="Desserts", slug="desserts")
+        UserProfile.objects.filter(user=user).update(role="admin")
+        category = Category.objects.create(name="Test Desserts", slug="test-desserts")
         self.client.force_login(user)
 
         response = self.client.post(
@@ -82,7 +82,7 @@ class DeliveryAddressAjaxTests(TestCase):
 
     def test_delivery_user_is_redirected_from_cart(self):
         user = User.objects.create_user(username="deliverycart", password="pass123")
-        UserProfile.objects.create(user=user, role="delivery")
+        UserProfile.objects.filter(user=user).update(role="delivery")
         self.client.force_login(user)
 
         response = self.client.get(reverse("cart"))
@@ -91,7 +91,7 @@ class DeliveryAddressAjaxTests(TestCase):
 
     def test_delivery_dashboard_shows_history_and_earnings(self):
         user = User.objects.create_user(username="deliveryhistory", password="pass123")
-        UserProfile.objects.create(user=user, role="delivery")
+        UserProfile.objects.filter(user=user).update(role="delivery")
         delivery_person = DeliveryPerson.objects.create(user=user, phone="5551234")
         customer = User.objects.create_user(username="customerhistory", password="pass123")
 
@@ -111,7 +111,7 @@ class DeliveryAddressAjaxTests(TestCase):
 
     def test_user_dashboard_shows_summary_for_authenticated_user(self):
         user = User.objects.create_user(username="dashboarduser", password="pass123")
-        UserProfile.objects.create(user=user, role="customer")
+        UserProfile.objects.filter(user=user).update(role="customer")
         self.client.force_login(user)
 
         response = self.client.get(reverse("user_dashboard"))
@@ -214,7 +214,7 @@ class DeliveryAddressAjaxTests(TestCase):
 class DeliveryVerificationCodeTests(TestCase):
     def setUp(self):
         self.delivery_user = User.objects.create_user(username="deliveryotp", password="pass123")
-        UserProfile.objects.create(user=self.delivery_user, role="delivery")
+        UserProfile.objects.filter(user=self.delivery_user).update(role="delivery")
         self.delivery_person = DeliveryPerson.objects.create(user=self.delivery_user, phone="5558888")
 
         self.customer = User.objects.create_user(username="customerotp", password="pass123")
